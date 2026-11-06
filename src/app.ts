@@ -1,7 +1,6 @@
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
-import { pinoHttp } from 'pino-http';
 import path from 'path';
 import swaggerUi from 'swagger-ui-express';
 
@@ -57,17 +56,21 @@ export function createApp() {
   app.use(requestIdMiddleware);
 
   // 2. Structured Request Logger
-  app.use(
-    pinoHttp({
-      logger,
-      genReqId: (req) => req.id || 'unknown',
-      customLogLevel: (req, res, err) => {
-        if (res.statusCode >= 500 || err) return 'error';
-        if (res.statusCode >= 400) return 'warn';
-        return 'info';
-      },
-    })
-  );
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      const msg = `${req.method} ${req.originalUrl || req.url} ${res.statusCode} - ${duration}ms`;
+      if (res.statusCode >= 500) {
+        logger.error({ id: req.id, status: res.statusCode, duration }, msg);
+      } else if (res.statusCode >= 400) {
+        logger.warn({ id: req.id, status: res.statusCode, duration }, msg);
+      } else {
+        logger.info({ id: req.id, status: res.statusCode, duration }, msg);
+      }
+    });
+    next();
+  });
 
   // 3. Security Headers
   app.use(
