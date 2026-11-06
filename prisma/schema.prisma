@@ -1,0 +1,371 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum GlobalRole {
+  DEVOTEE
+  SUPER_ADMIN
+}
+
+enum TempleRole {
+  STAFF
+  ADMIN
+}
+
+enum TempleStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+}
+
+enum BookingStatus {
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum Weekday {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+model User {
+  id              String          @id @default(uuid())
+  email           String          @unique
+  phone           String?         @unique
+  name            String?
+  role            GlobalRole      @default(DEVOTEE)
+  passwordHash    String?         @map("password_hash")
+  language        String          @default("en")
+  isEmailVerified Boolean         @default(false) @map("is_email_verified")
+  emailVerifiedAt DateTime?       @map("email_verified_at")
+  isActive        Boolean         @default(true) @map("is_active")
+  failedLogins    Int             @default(0) @map("failed_logins")
+  lockedUntil     DateTime?       @map("locked_until")
+  lastLoginAt     DateTime?       @map("last_login_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  familyMembers   FamilyMember[]
+  sessions        RefreshSession[]
+  devices         DeviceToken[]
+  staffRoles      TempleStaff[]
+  bookings        Booking[]
+
+  @@map("users")
+}
+
+model OtpCode {
+  id         String    @id @default(uuid())
+  email      String
+  codeHash   String    @map("code_hash")
+  purpose    String    @default("VERIFICATION") @map("purpose")
+  attempts   Int       @default(0)
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([email, createdAt])
+  @@index([expiresAt])
+  @@map("otp_codes")
+}
+
+model FamilyMember {
+  id        String  @id @default(uuid())
+  userId    String  @map("user_id")
+  name      String
+  nakshatra String?
+  gotra     String?
+  relation  String?
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("family_members")
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  familyId  String    @map("family_id")
+  tokenHash String    @unique @map("token_hash")
+  userAgent String?   @map("user_agent")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_sessions")
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  fcmToken  String   @unique @map("fcm_token")
+  platform  String
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+model Temple {
+  id                      String         @id @default(uuid())
+  slug                    String         @unique
+  name                    String
+  nameMl                  String?        @map("name_ml")
+  deity                   String
+  description             String?
+  descriptionMl           String?        @map("description_ml")
+  addressLine             String         @map("address_line")
+  district                String
+  state                   String         @default("Kerala")
+  pincode                 String?
+  latitude                Decimal?
+  longitude               Decimal?
+  phone                   String?
+  email                   String?
+  coverImageUrl           String?        @map("cover_image_url")
+  openingHours            Json?          @map("opening_hours")
+  bookingAdvanceDays      Int            @default(60) @map("booking_advance_days")
+  cancellationCutoffHours Int            @default(24) @map("cancellation_cutoff_hours")
+  status                  TempleStatus   @default(DRAFT)
+  deletedAt               DateTime?      @map("deleted_at")
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
+  staff                   TempleStaff[]
+  poojas                  Pooja[]
+  occasions               Occasion[]
+  announcements           Announcement[]
+  media                   MediaAsset[]
+  bookings                Booking[]
+
+  @@index([district])
+  @@index([status, deletedAt])
+  @@map("temples")
+}
+
+model TempleStaff {
+  id        String     @id @default(uuid())
+  userId    String     @map("user_id")
+  templeId  String     @map("temple_id")
+  role      TempleRole
+  isActive  Boolean    @default(true) @map("is_active")
+  createdAt DateTime   @default(now()) @map("created_at")
+  user      User       @relation(fields: [userId], references: [id])
+  temple    Temple     @relation(fields: [templeId], references: [id])
+
+  @@unique([userId, templeId])
+  @@index([templeId])
+  @@map("temple_staff")
+}
+
+model MediaAsset {
+  id           String   @id @default(uuid())
+  templeId     String   @map("temple_id")
+  publicId     String   @unique @map("public_id")
+  url          String
+  uploadedById String   @map("uploaded_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  temple       Temple   @relation(fields: [templeId], references: [id])
+
+  @@index([templeId])
+  @@map("media_assets")
+}
+
+model Pooja {
+  id                    String          @id @default(uuid())
+  templeId              String          @map("temple_id")
+  name                  String
+  nameMl                String?         @map("name_ml")
+  description           String?
+  pricePaise            Int             @default(0) @map("price_paise")
+  durationMinutes       Int?            @map("duration_minutes")
+  maxDevoteesPerBooking Int             @default(5) @map("max_devotees_per_booking")
+  requiresBooking       Boolean         @default(true) @map("requires_booking")
+  isActive              Boolean         @default(true) @map("is_active")
+  deletedAt             DateTime?       @map("deleted_at")
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
+  temple                Temple          @relation(fields: [templeId], references: [id])
+  schedules             PoojaSchedule[]
+  occasionPoojas        OccasionPooja[]
+  bookings              Booking[]
+
+  @@index([templeId, isActive])
+  @@map("poojas")
+}
+
+model PoojaSchedule {
+  id        String          @id @default(uuid())
+  poojaId   String          @map("pooja_id")
+  templeId  String          @map("temple_id")
+  weekday   Weekday
+  startTime String          @map("start_time")
+  endTime   String?         @map("end_time")
+  capacity  Int
+  isActive  Boolean         @default(true) @map("is_active")
+  pooja     Pooja           @relation(fields: [poojaId], references: [id])
+  inventory SlotInventory[]
+  bookings  Booking[]
+
+  @@unique([poojaId, weekday, startTime])
+  @@index([templeId])
+  @@map("pooja_schedules")
+}
+
+model SlotInventory {
+  id         String        @id @default(uuid())
+  scheduleId String        @map("schedule_id")
+  templeId   String        @map("temple_id")
+  slotDate   DateTime      @map("slot_date")
+  capacity   Int
+  booked     Int           @default(0)
+  isBlocked  Boolean       @default(false) @map("is_blocked")
+  schedule   PoojaSchedule @relation(fields: [scheduleId], references: [id])
+
+  @@unique([scheduleId, slotDate])
+  @@index([templeId, slotDate])
+  @@map("slot_inventory")
+}
+
+model Occasion {
+  id                String          @id @default(uuid())
+  templeId          String          @map("temple_id")
+  name              String
+  nameMl            String?         @map("name_ml")
+  description       String?
+  startDate         DateTime        @map("start_date")
+  endDate           DateTime        @map("end_date")
+  startTime         String?         @map("start_time")
+  isRecurringYearly Boolean         @default(false) @map("is_recurring_yearly")
+  imageUrl          String?         @map("image_url")
+  isPublished       Boolean         @default(false) @map("is_published")
+  deletedAt         DateTime?       @map("deleted_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  temple            Temple          @relation(fields: [templeId], references: [id])
+  poojas            OccasionPooja[]
+  bookings          Booking[]
+
+  @@index([templeId, startDate])
+  @@map("occasions")
+}
+
+model OccasionPooja {
+  occasionId String   @map("occasion_id")
+  poojaId    String   @map("pooja_id")
+  occasion   Occasion @relation(fields: [occasionId], references: [id], onDelete: Cascade)
+  pooja      Pooja    @relation(fields: [poojaId], references: [id])
+
+  @@id([occasionId, poojaId])
+  @@map("occasion_poojas")
+}
+
+model Booking {
+  id             String                 @id @default(uuid())
+  code           String                 @unique
+  userId         String                 @map("user_id")
+  templeId       String                 @map("temple_id")
+  poojaId        String                 @map("pooja_id")
+  scheduleId     String                 @map("schedule_id")
+  occasionId     String?                @map("occasion_id")
+  bookingDate    DateTime               @map("booking_date")
+  startTime      String                 @map("start_time")
+  devoteeCount   Int                    @map("devotee_count")
+  unitPricePaise Int                    @map("unit_price_paise")
+  totalPaise     Int                    @map("total_paise")
+  status         BookingStatus          @default(CONFIRMED)
+  idempotencyKey String?                @map("idempotency_key")
+  note           String?
+  checkedInAt    DateTime?              @map("checked_in_at")
+  checkedInById  String?                @map("checked_in_by_id")
+  cancelledAt    DateTime?              @map("cancelled_at")
+  cancelReason   String?                @map("cancel_reason")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  user           User                   @relation(fields: [userId], references: [id])
+  temple         Temple                 @relation(fields: [templeId], references: [id])
+  pooja          Pooja                  @relation(fields: [poojaId], references: [id])
+  schedule       PoojaSchedule          @relation(fields: [scheduleId], references: [id])
+  occasion       Occasion?              @relation(fields: [occasionId], references: [id])
+  devotees       BookingDevotee[]
+  history        BookingStatusHistory[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([templeId, bookingDate, status])
+  @@index([userId, createdAt])
+  @@map("bookings")
+}
+
+model BookingDevotee {
+  id        String  @id @default(uuid())
+  bookingId String  @map("booking_id")
+  name      String
+  nakshatra String?
+  gotra     String?
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("booking_devotees")
+}
+
+model BookingStatusHistory {
+  id          String         @id @default(uuid())
+  bookingId   String         @map("booking_id")
+  fromStatus  BookingStatus? @map("from_status")
+  toStatus    BookingStatus  @map("to_status")
+  changedById String?        @map("changed_by_id")
+  reason      String?
+  createdAt   DateTime       @default(now()) @map("created_at")
+  booking     Booking        @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
+  @@map("booking_status_history")
+}
+
+model Announcement {
+  id          String    @id @default(uuid())
+  templeId    String    @map("temple_id")
+  title       String
+  body        String
+  publishAt   DateTime  @default(now()) @map("publish_at")
+  sendPush    Boolean   @default(false) @map("send_push")
+  createdById String    @map("created_by_id")
+  deletedAt   DateTime? @map("deleted_at")
+  temple      Temple    @relation(fields: [templeId], references: [id])
+
+  @@index([templeId, publishAt])
+  @@map("announcements")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?  @map("actor_id")
+  templeId   String?  @map("temple_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  before     Json?
+  after      Json?
+  ip         String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([templeId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
