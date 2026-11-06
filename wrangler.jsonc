@@ -1,0 +1,32 @@
+{
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "temple-platform-backend",
+    "main": "src/worker.ts",
+    "compatibility_date": "2024-11-01",
+    "compatibility_flags": [
+        "nodejs_compat"
+    ],
+    // Cloudflare D1 Database Binding
+    "d1_databases": [
+        {
+            "binding": "DB",
+            "database_name": "temple-platform-db",
+            "database_id": "dd5ba2d3-1633-4e85-ac9e-c09842283ba3",
+            "migrations_dir": "migrations"
+        }
+    ],
+    // Automated Background Cron Triggers (replaces Node.js setInterval)
+    "triggers": {
+        "crons": [
+            "5 0 * * *", // Nightly at 00:05 UTC (generate slot inventory)
+            "0 * * * *" // Hourly (booking reminder notifications)
+        ]
+    },
+    // Public Environment Variables
+    "vars": {
+        "NODE_ENV": "production",
+        "EMAIL_PROVIDER": "brevo",
+        "EMAIL_FROM": "noreply@templeplatform.org",
+        "CORS_ORIGINS": "https://your-frontend-domain.com,http://localhost:19006"
+    }
+}
