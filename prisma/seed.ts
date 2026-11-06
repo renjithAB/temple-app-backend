@@ -1,5 +1,5 @@
 import { PrismaClient, GlobalRole, TempleRole, TempleStatus, Weekday } from '../src/generated/prisma/index.js';
-import argon2 from 'argon2';
+import { hashPassword } from '../src/lib/hashing.js';
 
 const prisma = new PrismaClient();
 
@@ -76,7 +76,7 @@ async function main() {
   console.log('🌱 Starting comprehensive database seed...');
 
   // 1. Create Super Admin
-  const superAdminPassword = await argon2.hash('SuperAdmin#2026!');
+  const superAdminPassword = await hashPassword('SuperAdmin#2026!');
   const superAdmin = await prisma.user.upsert({
     where: { email: 'admin@templeplatform.org' },
     update: {
@@ -125,7 +125,7 @@ async function main() {
     },
   });
 
-  const adminPassword = await argon2.hash('TempleAdmin#2026!');
+  const adminPassword = await hashPassword('TempleAdmin#2026!');
   const guruvayurAdmin = await prisma.user.upsert({
     where: { email: 'admin@guruvayur.org' },
     update: {
@@ -149,7 +149,7 @@ async function main() {
     create: { userId: guruvayurAdmin.id, templeId: guruvayur.id, role: TempleRole.ADMIN, isActive: true },
   });
 
-  const staffPassword = await argon2.hash('TempleStaff#2026!');
+  const staffPassword = await hashPassword('TempleStaff#2026!');
   const guruvayurStaff = await prisma.user.upsert({
     where: { email: 'staff@guruvayur.org' },
     update: {

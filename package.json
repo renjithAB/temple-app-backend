@@ -17,9 +17,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@noble/hashes": "^2.4.0",
     "@prisma/adapter-d1": "^7.10.1",
     "@prisma/client": "^6.4.0",
-    "argon2": "^0.41.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^5.0.1",
