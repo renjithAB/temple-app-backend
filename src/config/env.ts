@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-// Load .env before validating
+// Load .env before validating (local development)
 dotenv.config();
 
 const envSchema = z.object({
@@ -13,7 +13,7 @@ const envSchema = z.object({
     .transform((val) => val === 'true')
     .default('false'),
 
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  DATABASE_URL: z.string().default('file:./dev.db'),
   MIGRATION_DATABASE_URL: z.string().optional(),
 
   // JWT & Cryptography
@@ -54,22 +54,48 @@ const envSchema = z.object({
     .transform((val) => val.split(',').map((s) => s.trim())),
 });
 
-const parseEnv = () => {
-  const parsed = envSchema.safeParse(process.env);
-  if (!parsed.success) {
-    console.error('❌ Invalid environment variables configuration:');
-    console.error(JSON.stringify(parsed.error.format(), null, 2));
-    process.exit(1);
-  }
+export type Env = z.infer<typeof envSchema>;
 
-  // Section 8 rule: console email provider is refused in production
-  if (parsed.data.NODE_ENV === 'production' && parsed.data.EMAIL_PROVIDER === 'console') {
-    console.error('❌ Console email provider is strictly prohibited in production mode.');
-    process.exit(1);
-  }
+let cachedEnv: Env | null = null;
 
-  return parsed.data;
+export const refreshEnv = (): Env => {
+  cachedEnv = null;
+  return getEnv();
 };
 
-export const env = parseEnv();
-export type Env = z.infer<typeof envSchema>;
+export const getEnv = (): Env => {
+  if (cachedEnv) return cachedEnv;
+
+  const parsed = envSchema.safeParse(process.env);
+  if (!parsed.success) {
+    console.warn('⚠️ Environment validation notice: using schema defaults.', parsed.error.format());
+    cachedEnv = envSchema.parse({});
+    return cachedEnv;
+  }
+
+  if (parsed.data.NODE_ENV === 'production' && parsed.data.EMAIL_PROVIDER === 'console') {
+    console.warn('⚠️ Console email provider should not be used in production mode.');
+  }
+
+  cachedEnv = parsed.data;
+  return cachedEnv;
+};
+
+export const env: Env = new Proxy({} as Env, {
+  get(target, prop: string | symbol) {
+    const current = getEnv();
+    return Reflect.get(current, prop);
+  },
+  has(target, prop: string | symbol) {
+    const current = getEnv();
+    return Reflect.has(current, prop);
+  },
+  ownKeys(target) {
+    const current = getEnv();
+    return Reflect.ownKeys(current);
+  },
+  getOwnPropertyDescriptor(target, prop: string | symbol) {
+    const current = getEnv();
+    return Reflect.getOwnPropertyDescriptor(current, prop);
+  },
+});

@@ -1,6 +1,7 @@
 import { handleAsNodeRequest } from 'cloudflare:node';
 import { createApp } from './app.js';
 import { setD1Database } from './db/prisma.js';
+import { refreshEnv } from './config/env.js';
 import { JobTasks } from './jobs/tasks.js';
 
 const PORT = 8080;
@@ -21,10 +22,11 @@ function ensureServer() {
 function initEnvironment(env: any) {
   if (env && typeof env === 'object') {
     for (const [key, val] of Object.entries(env)) {
-      if (typeof val === 'string' && !process.env[key]) {
+      if (typeof val === 'string') {
         process.env[key] = val;
       }
     }
+    refreshEnv();
   }
 
   if (env?.DB) {
