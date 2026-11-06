@@ -1,3 +1,11 @@
+// Ensure CommonJS path globals exist in edge isolate environments
+if (typeof (globalThis as any).__dirname === 'undefined') {
+  (globalThis as any).__dirname = '/';
+}
+if (typeof (globalThis as any).__filename === 'undefined') {
+  (globalThis as any).__filename = '/worker.js';
+}
+
 import { handleAsNodeRequest } from 'cloudflare:node';
 import { createApp } from './app.js';
 import { setD1Database } from './db/prisma.js';

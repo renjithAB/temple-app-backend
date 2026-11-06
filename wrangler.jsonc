@@ -6,6 +6,10 @@
     "compatibility_flags": [
         "nodejs_compat"
     ],
+    "define": {
+        "__dirname": "\"/\"",
+        "__filename": "\"/worker.js\""
+    },
     // Cloudflare D1 Database Binding
     "d1_databases": [
         {
