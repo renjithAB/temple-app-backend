@@ -1,4 +1,4 @@
-import { PrismaClient, BookingStatus, Prisma } from '../../generated/prisma/index.js';
+import { BookingStatus, Prisma, type PrismaClient } from '../../generated/prisma/wasm.js';
 import { AppError } from '../../lib/errors.js';
 
 type TransactionClient = Omit<

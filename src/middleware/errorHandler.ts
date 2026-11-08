@@ -60,8 +60,10 @@ export function errorHandler(
   return res.status(500).json({
     error: {
       code: 'INTERNAL_ERROR',
-      message: env.NODE_ENV === 'production' ? 'An unexpected internal error occurred' : err.message,
-      details: {},
+      message: err.message || 'An unexpected internal error occurred',
+      details: {
+        errorType: err.name || 'Error',
+      },
     },
   });
 }
