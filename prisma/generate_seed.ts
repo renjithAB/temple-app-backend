@@ -1733,13 +1733,13 @@ function generateSql(): string {
   // 1. Super Admin
   const superAdminId = '00000000-0000-4000-a000-000000000001';
   sql.push('-- 1. Super Admin');
-  sql.push(`INSERT OR REPLACE INTO "users" ("id", "email", "phone", "name", "role", "password_hash", "language", "is_email_verified", "email_verified_at", "is_active", "failed_logins", "created_at", "updated_at") VALUES ('${superAdminId}', 'admin@templeplatform.org', '+919999900001', 'Platform Super Admin', 'SUPER_ADMIN', '${SUPER_ADMIN_HASH}', 'en', 1, CURRENT_TIMESTAMP, 1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`);
+  sql.push(`INSERT OR IGNORE INTO "users" ("id", "email", "phone", "name", "role", "password_hash", "language", "is_email_verified", "email_verified_at", "is_active", "failed_logins", "created_at", "updated_at") VALUES ('${superAdminId}', 'admin@templeplatform.org', '+919999900001', 'Platform Super Admin', 'SUPER_ADMIN', '${SUPER_ADMIN_HASH}', 'en', 1, CURRENT_TIMESTAMP, 1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`);
   sql.push('');
 
   // 2. Devotee User
   const devoteeId = '00000000-0000-4000-b000-000000000001';
   sql.push('-- 2. Devotee User');
-  sql.push(`INSERT OR REPLACE INTO "users" ("id", "email", "phone", "name", "role", "password_hash", "language", "is_email_verified", "email_verified_at", "is_active", "failed_logins", "created_at", "updated_at") VALUES ('${devoteeId}', 'devotee@templeplatform.org', '+919876543210', 'Ananthakrishnan Nair', 'DEVOTEE', '${DEVOTEE_HASH}', 'en', 1, CURRENT_TIMESTAMP, 1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`);
+  sql.push(`INSERT OR IGNORE INTO "users" ("id", "email", "phone", "name", "role", "password_hash", "language", "is_email_verified", "email_verified_at", "is_active", "failed_logins", "created_at", "updated_at") VALUES ('${devoteeId}', 'devotee@templeplatform.org', '+919876543210', 'Ananthakrishnan Nair', 'DEVOTEE', '${DEVOTEE_HASH}', 'en', 1, CURRENT_TIMESTAMP, 1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`);
   sql.push('');
 
   // 3. 30 Temples, 30 Temple Admins, Poojas, Schedules, Occasions
@@ -1754,42 +1754,42 @@ function generateSql(): string {
 
     // Insert Temple
     const openingHoursJson = JSON.stringify(t.openingHours);
-    sql.push(`INSERT OR REPLACE INTO "temples" ("id", "slug", "name", "name_ml", "deity", "description", "description_ml", "address_line", "district", "state", "pincode", "latitude", "longitude", "phone", "email", "cover_image_url", "opening_hours", "booking_advance_days", "cancellation_cutoff_hours", "status", "created_at", "updated_at") VALUES ('${templeId}', '${t.slug}', '${escapeSql(t.name)}', '${escapeSql(t.nameMl)}', '${escapeSql(t.deity)}', '${escapeSql(t.description)}', '${escapeSql(t.descriptionMl)}', '${escapeSql(t.addressLine)}', '${escapeSql(t.district)}', '${escapeSql(t.state)}', '${t.pincode}', ${t.latitude}, ${t.longitude}, '${t.phone}', '${t.email}', '${t.coverImageUrl}', '${escapeSql(openingHoursJson)}', ${t.bookingAdvanceDays}, ${t.cancellationCutoffHours}, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`);
+    sql.push(`INSERT OR IGNORE INTO "temples" ("id", "slug", "name", "name_ml", "deity", "description", "description_ml", "address_line", "district", "state", "pincode", "latitude", "longitude", "phone", "email", "cover_image_url", "opening_hours", "booking_advance_days", "cancellation_cutoff_hours", "status", "created_at", "updated_at") VALUES ('${templeId}', '${t.slug}', '${escapeSql(t.name)}', '${escapeSql(t.nameMl)}', '${escapeSql(t.deity)}', '${escapeSql(t.description)}', '${escapeSql(t.descriptionMl)}', '${escapeSql(t.addressLine)}', '${escapeSql(t.district)}', '${escapeSql(t.state)}', '${t.pincode}', ${t.latitude}, ${t.longitude}, '${t.phone}', '${t.email}', '${t.coverImageUrl}', '${escapeSql(openingHoursJson)}', ${t.bookingAdvanceDays}, ${t.cancellationCutoffHours}, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`);
 
     // Insert Temple Admin User
-    sql.push(`INSERT OR REPLACE INTO "users" ("id", "email", "phone", "name", "role", "password_hash", "language", "is_email_verified", "email_verified_at", "is_active", "failed_logins", "created_at", "updated_at") VALUES ('${adminUserId}', '${t.adminEmail}', '+91${9800000000 + tIdx}', '${escapeSql(t.adminName)}', 'DEVOTEE', '${TEMPLE_ADMIN_HASH}', 'en', 1, CURRENT_TIMESTAMP, 1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`);
+    sql.push(`INSERT OR IGNORE INTO "users" ("id", "email", "phone", "name", "role", "password_hash", "language", "is_email_verified", "email_verified_at", "is_active", "failed_logins", "created_at", "updated_at") VALUES ('${adminUserId}', '${t.adminEmail}', '+91${9800000000 + tIdx}', '${escapeSql(t.adminName)}', 'DEVOTEE', '${TEMPLE_ADMIN_HASH}', 'en', 1, CURRENT_TIMESTAMP, 1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`);
 
     // Assign Staff Role: ADMIN
-    sql.push(`INSERT OR REPLACE INTO "temple_staff" ("id", "user_id", "temple_id", "role", "is_active", "created_at") VALUES ('${staffId}', '${adminUserId}', '${templeId}', 'ADMIN', 1, CURRENT_TIMESTAMP);`);
+    sql.push(`INSERT OR IGNORE INTO "temple_staff" ("id", "user_id", "temple_id", "role", "is_active", "created_at") VALUES ('${staffId}', '${adminUserId}', '${templeId}', 'ADMIN', 1, CURRENT_TIMESTAMP);`);
 
     // Insert Poojas and Schedules
     const firstPoojaId = generateUuid(`f${tIdx.toString(16).padStart(2, '0')}0`, 0);
 
     t.poojas.forEach((p, pIdx) => {
       const poojaId = generateUuid(`f${tIdx.toString(16).padStart(2, '0')}${pIdx}`, pIdx);
-      sql.push(`INSERT OR REPLACE INTO "poojas" ("id", "temple_id", "name", "name_ml", "description", "price_paise", "duration_minutes", "max_devotees_per_booking", "requires_booking", "is_active", "created_at", "updated_at") VALUES ('${poojaId}', '${templeId}', '${escapeSql(p.name)}', '${escapeSql(p.nameMl)}', '${escapeSql(p.description)}', ${p.pricePaise}, ${p.durationMinutes}, ${p.maxDevotees}, 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`);
+      sql.push(`INSERT OR IGNORE INTO "poojas" ("id", "temple_id", "name", "name_ml", "description", "price_paise", "duration_minutes", "max_devotees_per_booking", "requires_booking", "is_active", "created_at", "updated_at") VALUES ('${poojaId}', '${templeId}', '${escapeSql(p.name)}', '${escapeSql(p.nameMl)}', '${escapeSql(p.description)}', ${p.pricePaise}, ${p.durationMinutes}, ${p.maxDevotees}, 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`);
 
       // Add schedules for each day of week MON-SUN
       const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
       weekdays.forEach((day, dIdx) => {
         const scheduleId = generateUuid(`1${tIdx.toString(16).padStart(2, '0')}${pIdx}`, dIdx);
-        sql.push(`INSERT OR REPLACE INTO "pooja_schedules" ("id", "pooja_id", "temple_id", "weekday", "start_time", "end_time", "capacity", "is_active") VALUES ('${scheduleId}', '${poojaId}', '${templeId}', '${day}', '${p.startTime}', '${p.endTime}', ${p.capacity}, 1);`);
+        sql.push(`INSERT OR IGNORE INTO "pooja_schedules" ("id", "pooja_id", "temple_id", "weekday", "start_time", "end_time", "capacity", "is_active") VALUES ('${scheduleId}', '${poojaId}', '${templeId}', '${day}', '${p.startTime}', '${p.endTime}', ${p.capacity}, 1);`);
       });
     });
 
     // Insert Occasion/Festival if present
     if (t.occasion) {
       const occasionId = generateUuid('7000', tIdx);
-      sql.push(`INSERT OR REPLACE INTO "occasions" ("id", "temple_id", "name", "name_ml", "description", "start_date", "end_date", "start_time", "is_recurring_yearly", "image_url", "is_published", "created_at", "updated_at") VALUES ('${occasionId}', '${templeId}', '${escapeSql(t.occasion.name)}', '${escapeSql(t.occasion.nameMl)}', '${escapeSql(t.occasion.description)}', '${t.occasion.startDate} 00:00:00', '${t.occasion.endDate} 23:59:59', '${t.occasion.startTime}', 1, '${t.coverImageUrl}', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`);
+      sql.push(`INSERT OR IGNORE INTO "occasions" ("id", "temple_id", "name", "name_ml", "description", "start_date", "end_date", "start_time", "is_recurring_yearly", "image_url", "is_published", "created_at", "updated_at") VALUES ('${occasionId}', '${templeId}', '${escapeSql(t.occasion.name)}', '${escapeSql(t.occasion.nameMl)}', '${escapeSql(t.occasion.description)}', '${t.occasion.startDate} 00:00:00', '${t.occasion.endDate} 23:59:59', '${t.occasion.startTime}', 1, '${t.coverImageUrl}', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`);
 
       // Link Occasion with First Pooja
-      sql.push(`INSERT OR REPLACE INTO "occasion_poojas" ("occasion_id", "pooja_id") VALUES ('${occasionId}', '${firstPoojaId}');`);
+      sql.push(`INSERT OR IGNORE INTO "occasion_poojas" ("occasion_id", "pooja_id") VALUES ('${occasionId}', '${firstPoojaId}');`);
     }
 
     // Insert Announcement if present
     if (t.announcement) {
       const announcementId = generateUuid('8000', tIdx);
-      sql.push(`INSERT OR REPLACE INTO "announcements" ("id", "temple_id", "title", "body", "publish_at", "send_push", "created_by_id") VALUES ('${announcementId}', '${templeId}', '${escapeSql(t.announcement.title)}', '${escapeSql(t.announcement.body)}', CURRENT_TIMESTAMP, 0, '${adminUserId}');`);
+      sql.push(`INSERT OR IGNORE INTO "announcements" ("id", "temple_id", "title", "body", "publish_at", "send_push", "created_by_id") VALUES ('${announcementId}', '${templeId}', '${escapeSql(t.announcement.title)}', '${escapeSql(t.announcement.body)}', CURRENT_TIMESTAMP, 0, '${adminUserId}');`);
     }
 
     sql.push('');
@@ -1803,3 +1803,4 @@ const outputPath = path.resolve(process.cwd(), 'prisma/seed.sql');
 fs.writeFileSync(outputPath, sqlOutput, 'utf8');
 
 console.log(`✅ Generated ${TEMPLES.length} temples seed SQL script at: ${outputPath}`);
+

@@ -13,7 +13,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:generate": "tsx prisma/generate_seed.ts",
-    "db:seed:d1": "wrangler d1 execute temple-platform-db --remote --file=./prisma/seed.sql",
+    "db:seed:d1": "npx wrangler d1 execute temple-platform-db --remote --file=./prisma/seed.sql",
+    "db:seed:d1:local": "npx wrangler d1 execute temple-platform-db --local --file=./prisma/seed.sql",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
@@ -42,6 +43,7 @@
     "supertest": "^7.0.0",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3",
-    "vitest": "^3.0.5"
+    "vitest": "^3.0.5",
+    "wrangler": "^4.158.0"
   }
 }
