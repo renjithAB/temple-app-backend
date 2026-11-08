@@ -12,6 +12,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:generate": "tsx prisma/generate_seed.ts",
+    "db:seed:d1": "wrangler d1 execute temple-platform-db --remote --file=./prisma/seed.sql",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
