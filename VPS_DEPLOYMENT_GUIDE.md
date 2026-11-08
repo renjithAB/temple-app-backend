@@ -245,7 +245,7 @@ export function hashRefreshToken(token: string): string {
 
 ### 1. Update `prisma/schema.prisma`
 
-Change the datasource provider to `postgresql` and remove the D1 adapter preview flag:
+Change the datasource provider to `postgresql` and remove the D1 adapter preview flag (`previewFeatures = ["driverAdapters"]`):
 
 ```prisma
 generator client {
@@ -259,9 +259,18 @@ datasource db {
 }
 ```
 
-### 2. Update `src/db/prisma.ts`
+Then regenerate the Prisma Client for native Linux:
 
-Replace the D1 adapter logic with standard Prisma PostgreSQL connection pooling:
+```bash
+npx prisma generate
+```
+
+### 2. Revert Prisma Client from Edge WASM (`wasm.js`) to Native (`index.js`)
+
+On Cloudflare Workers, we had to import from `../generated/prisma/wasm.js` because edge isolates lack a filesystem. On a Linux VPS running Node.js, you have a native filesystem and **must use `index.js`** to leverage the compiled C++/Rust query engine (`libquery_engine.so.node`), which is multi-threaded and significantly faster.
+
+#### Update `src/db/prisma.ts`:
+Revert the import from `wasm.js` back to `index.js`, remove `@prisma/adapter-d1`, and connect directly to PostgreSQL:
 
 ```typescript
 import { PrismaClient } from '../generated/prisma/index.js';
@@ -269,6 +278,11 @@ import { env } from '../config/env.js';
 import { logger } from '../lib/logger.js';
 
 export const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: env.DATABASE_URL,
+    },
+  },
   log:
     env.NODE_ENV === 'development'
       ? ['query', 'info', 'warn', 'error']
@@ -278,6 +292,14 @@ export const prisma = new PrismaClient({
 prisma.$connect()
   .then(() => logger.info('🐘 Connected to PostgreSQL database'))
   .catch((err) => logger.error({ err }, 'Failed to connect to PostgreSQL database'));
+```
+
+#### Update `src/modules/bookings/bookingState.service.ts`:
+Revert the import from `wasm.js` back to `index.js`:
+
+```typescript
+import { BookingStatus, Prisma, type PrismaClient } from '../../generated/prisma/index.js';
+import { AppError } from '../../lib/errors.js';
 ```
 
 ---
@@ -721,11 +743,12 @@ volumes:
 
 When transitioning between Cloudflare Workers and a VPS deployment:
 
-- [ ] **Install Packages**: `npm install sharp argon2 pg`
+- [ ] **Install Packages**: `npm install sharp argon2 pg` and `npm uninstall @prisma/adapter-d1`
 - [ ] **Image Optimization**: Replace magic-byte passthrough with `sharp().rotate().resize(...).webp().toBuffer()` in `media.service.ts` and `super.service.ts`.
 - [ ] **Argon2 Hashing**: Point `hashPassword` and `verifyPassword` in `src/lib/hashing.ts` to native `argon2`.
-- [ ] **Database Provider**: Switch `prisma/schema.prisma` datasource provider from `sqlite` to `postgresql`.
-- [ ] **Prisma Client**: Remove `@prisma/adapter-d1` from `src/db/prisma.ts`.
+- [ ] **Database Provider**: Switch `prisma/schema.prisma` datasource provider from `sqlite` to `postgresql` and remove `previewFeatures = ["driverAdapters"]`.
+- [ ] **Prisma Client Revert**: In `src/db/prisma.ts` and `src/modules/bookings/bookingState.service.ts`, revert import paths from `wasm.js` back to `index.js`.
+- [ ] **Prisma Generate**: Run `npx prisma generate` to generate the native Linux query engine.
 - [ ] **Nginx Upload Limit**: Ensure `client_max_body_size 10M;` is present in your Nginx configuration.
 - [ ] **Static Media Route**: Serve `/uploads/` directly from disk with `add_header Cache-Control "public, max-age=31536000, immutable";`.
 - [ ] **Process Management**: Start application using PM2 cluster mode or Docker Compose.
