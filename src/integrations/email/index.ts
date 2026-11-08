@@ -1,15 +1,28 @@
 import { env } from '../../config/env.js';
-import { IEmailService } from './email.interface.js';
+import { IEmailService, SendEmailOptions } from './email.interface.js';
 import { ConsoleEmailService } from './console.email.js';
 import { BrevoEmailService } from './brevo.email.js';
 
-let emailServiceInstance: IEmailService;
+class DynamicEmailService implements IEmailService {
+  private consoleService = new ConsoleEmailService();
+  private brevoService = new BrevoEmailService();
 
-if (env.EMAIL_PROVIDER === 'brevo' && env.BREVO_SMTP_USER && env.BREVO_SMTP_KEY) {
-  emailServiceInstance = new BrevoEmailService();
-} else {
-  emailServiceInstance = new ConsoleEmailService();
+  private getActiveService(): IEmailService {
+    const hasBrevoKey = !!(process.env.BREVO_SMTP_KEY || env.BREVO_SMTP_KEY);
+    if (env.EMAIL_PROVIDER === 'brevo' && hasBrevoKey) {
+      return this.brevoService;
+    }
+    return this.consoleService;
+  }
+
+  async sendEmail(options: SendEmailOptions): Promise<void> {
+    return this.getActiveService().sendEmail(options);
+  }
+
+  async sendOtp(to: string, code: string, purpose?: string): Promise<void> {
+    return this.getActiveService().sendOtp(to, code, purpose);
+  }
 }
 
-export const emailService = emailServiceInstance;
+export const emailService: IEmailService = new DynamicEmailService();
 export * from './email.interface.js';

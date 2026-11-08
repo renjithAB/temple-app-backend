@@ -1,33 +1,41 @@
-import nodemailer from 'nodemailer';
 import { IEmailService, SendEmailOptions } from './email.interface.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../lib/logger.js';
 
 export class BrevoEmailService implements IEmailService {
-  private transporter: nodemailer.Transporter;
-
-  constructor() {
-    this.transporter = nodemailer.createTransport({
-      host: env.BREVO_SMTP_HOST,
-      port: env.BREVO_SMTP_PORT,
-      secure: env.BREVO_SMTP_PORT === 465,
-      auth: {
-        user: env.BREVO_SMTP_USER,
-        pass: env.BREVO_SMTP_KEY,
-      },
-    });
-  }
-
   async sendEmail(options: SendEmailOptions): Promise<void> {
+    const apiKey = process.env.BREVO_SMTP_KEY || env.BREVO_SMTP_KEY;
+    const senderEmail = env.EMAIL_FROM || 'noreply@templeplatform.org';
+
+    if (!apiKey) {
+      logger.warn('Brevo API key is not configured, skipping email delivery');
+      return;
+    }
+
     try {
-      await this.transporter.sendMail({
-        from: env.EMAIL_FROM,
-        to: options.to,
-        subject: options.subject,
-        text: options.text,
-        html: options.html,
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { email: senderEmail, name: 'Temple Platform' },
+          to: [{ email: options.to }],
+          subject: options.subject,
+          htmlContent: options.html || options.text,
+          textContent: options.text,
+        }),
       });
-      logger.info({ to: options.to, subject: options.subject }, 'Email sent successfully via Brevo');
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error({ status: response.status, errorText, to: options.to }, 'Failed to send email via Brevo REST API');
+        throw new Error(`Brevo email delivery failed: ${response.statusText}`);
+      }
+
+      logger.info({ to: options.to, subject: options.subject }, 'Email sent successfully via Brevo REST API');
     } catch (error) {
       logger.error({ error, to: options.to }, 'Failed to send email via Brevo');
       throw error;

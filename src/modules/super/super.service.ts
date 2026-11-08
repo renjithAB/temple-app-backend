@@ -1,4 +1,3 @@
-import sharp from 'sharp';
 import crypto from 'crypto';
 import { prisma } from '../../db/prisma.js';
 import { storageService } from '../../integrations/storage/index.js';
@@ -28,17 +27,19 @@ export class SuperService {
       throw AppError.badRequest('Invalid image format. Genuine JPEG, PNG, or WebP required');
     }
 
-    // High quality optimization with Sharp: max 1200x800, strip metadata, WebP format
-    const optimizedBuffer = await sharp(fileBuffer)
-      .resize({ width: 1200, height: 800, fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 80 })
-      .toBuffer();
+    // Determine extension based on image magic bytes
+    let ext = 'jpg';
+    if (fileBuffer[0] === 0x89 && fileBuffer[1] === 0x50) {
+      ext = 'png';
+    } else if (fileBuffer.toString('ascii', 8, 12) === 'WEBP') {
+      ext = 'webp';
+    }
 
-    const filename = `${crypto.randomUUID()}.webp`;
+    const filename = `${crypto.randomUUID()}.${ext}`;
     const folder = 'temples';
 
     const { url, publicId } = await storageService.uploadImage(
-      optimizedBuffer,
+      fileBuffer,
       folder,
       filename
     );
