@@ -730,3 +730,4 @@ When transitioning between Cloudflare Workers and a VPS deployment:
 - [ ] **Static Media Route**: Serve `/uploads/` directly from disk with `add_header Cache-Control "public, max-age=31536000, immutable";`.
 - [ ] **Process Management**: Start application using PM2 cluster mode or Docker Compose.
 - [ ] **Security**: Enable UFW firewall and Certbot HTTPS certificate renewal.
+
