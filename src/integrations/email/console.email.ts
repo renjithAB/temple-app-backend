@@ -3,13 +3,12 @@ import { logger } from '../../lib/logger.js';
 import { env } from '../../config/env.js';
 
 export class ConsoleEmailService implements IEmailService {
-  constructor() {
-    if (env.NODE_ENV === 'production') {
-      throw new Error('ConsoleEmailService is strictly disallowed in production environment.');
-    }
-  }
-
   async sendEmail(options: SendEmailOptions): Promise<void> {
+    if (env.NODE_ENV === 'production') {
+      logger.error({ to: options.to, subject: options.subject }, 'ConsoleEmailService is disallowed in production environment.');
+      throw new Error('ConsoleEmailService is strictly disallowed in production environment. Please configure Brevo API key.');
+    }
+
     console.log('\n===============================================================');
     console.log(`📧 [CONSOLE EMAIL] To: ${options.to}`);
     console.log(`📋 Subject: ${options.subject}`);
@@ -20,6 +19,11 @@ export class ConsoleEmailService implements IEmailService {
   }
 
   async sendOtp(to: string, code: string, purpose: string = 'VERIFY'): Promise<void> {
+    if (env.NODE_ENV === 'production') {
+      logger.error({ to, purpose }, 'ConsoleEmailService is disallowed in production environment.');
+      throw new Error('ConsoleEmailService is strictly disallowed in production environment. Please configure Brevo API key.');
+    }
+
     const isForgot = purpose === 'FORGOT_PASSWORD';
     const title = isForgot ? '🔑 [PASSWORD RESET OTP]' : '🔑 [EMAIL VERIFICATION OTP]';
 
