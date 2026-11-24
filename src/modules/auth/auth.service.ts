@@ -194,11 +194,23 @@ export class AuthService {
       throw new AppError('INVALID_OTP', 400, 'Invalid verification code');
     }
 
-    // Mark OTP consumed immediately
-    await prisma.otpCode.update({
-      where: { id: otpRecord.id },
+    // Check account status BEFORE modifying user state or marking email verified
+    if (!user.isActive) {
+      throw AppError.forbidden('User account is suspended');
+    }
+
+    // Atomically mark OTP consumed to prevent concurrent consumption
+    const consumeResult = await prisma.otpCode.updateMany({
+      where: {
+        id: otpRecord.id,
+        consumedAt: null,
+      },
       data: { consumedAt: new Date() },
     });
+
+    if (consumeResult.count === 0) {
+      throw new AppError('INVALID_OTP', 400, 'Verification code has already been used.');
+    }
 
     // Update user: mark verified and record login
     const updatedUser = await prisma.user.update({
@@ -211,10 +223,6 @@ export class AuthService {
         lockedUntil: null,
       },
     });
-
-    if (!updatedUser.isActive) {
-      throw AppError.forbidden('User account is suspended');
-    }
 
     // Issue tokens and create session family
     const familyId = crypto.randomUUID();
@@ -280,6 +288,10 @@ export class AuthService {
       throw AppError.unauthorized('Invalid email or password');
     }
 
+    if (!user.isActive) {
+      throw AppError.forbidden('User account is suspended');
+    }
+
     // Check account lockout
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       const waitMinutes = Math.ceil(
@@ -292,33 +304,45 @@ export class AuthService {
       );
     }
 
-    // Verify password with fast PBKDF2 / seed bypass (< 1ms)
+    // Cryptographically verify password (zero shortcuts, zero bypasses)
     const passwordMatch = await verifyPassword(user.passwordHash, passwordPlain);
     if (!passwordMatch) {
-      const failedCount = user.failedLogins + 1;
-      const shouldLock = failedCount >= APP_CONSTANTS.AUTH.MAX_PASSWORD_ATTEMPTS;
-      const lockedUntil = shouldLock
-        ? new Date(Date.now() + APP_CONSTANTS.AUTH.LOCKOUT_MINUTES * 60 * 1000)
-        : null;
-
-      await prisma.user.update({
+      // Atomic increment to prevent losing failed attempt counters under concurrency
+      const updatedRecord = await prisma.user.update({
         where: { id: user.id },
         data: {
-          failedLogins: failedCount,
-          lockedUntil,
+          failedLogins: { increment: 1 },
         },
+        select: { failedLogins: true },
       });
+
+      if (updatedRecord.failedLogins >= APP_CONSTANTS.AUTH.MAX_PASSWORD_ATTEMPTS) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            lockedUntil: new Date(Date.now() + APP_CONSTANTS.AUTH.LOCKOUT_MINUTES * 60 * 1000),
+          },
+        });
+      }
 
       throw AppError.unauthorized('Invalid email or password');
     }
 
-    // Seamlessly upgrade legacy Argon2 hash to fast PBKDF2 on successful login (< 1ms future logins)
-    if (user.passwordHash.startsWith('$argon2')) {
+    // Safe optimistic concurrency hash upgrade:
+    // Only upgrade if user has an older hash, and only update if password_hash in DB still
+    // matches the exact verified hash (prevents overwriting concurrent password changes/resets)
+    let upgradedHash: string | null = null;
+    if (user.passwordHash.startsWith('$argon2') || !user.passwordHash.startsWith('$pbkdf2$v=1$i=100000$')) {
       try {
-        const upgradedHash = await hashPassword(passwordPlain);
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { passwordHash: upgradedHash },
+        upgradedHash = await hashPassword(passwordPlain);
+        await prisma.user.updateMany({
+          where: {
+            id: user.id,
+            passwordHash: user.passwordHash,
+          },
+          data: {
+            passwordHash: upgradedHash,
+          },
         });
       } catch (err) {
         logger.warn('Failed to auto-upgrade legacy password hash:', err);
@@ -361,8 +385,21 @@ export class AuthService {
       );
     }
 
-    if (!user.isActive) {
+    // Re-verify that user was not concurrently suspended or had password reset
+    const freshUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { passwordHash: true, isActive: true },
+    });
+
+    if (!freshUser || !freshUser.isActive) {
       throw AppError.forbidden('User account is suspended');
+    }
+
+    if (
+      freshUser.passwordHash !== user.passwordHash &&
+      (!upgradedHash || freshUser.passwordHash !== upgradedHash)
+    ) {
+      throw AppError.unauthorized('Password was changed concurrently. Please log in again.');
     }
 
     // Reset failed logins
@@ -603,11 +640,18 @@ export class AuthService {
       throw new AppError('INVALID_OTP', 400, 'Invalid password reset code');
     }
 
-    // Mark OTP consumed
-    await prisma.otpCode.update({
-      where: { id: otpRecord.id },
+    // Atomically mark OTP consumed to prevent concurrent reset race conditions
+    const consumeResult = await prisma.otpCode.updateMany({
+      where: {
+        id: otpRecord.id,
+        consumedAt: null,
+      },
       data: { consumedAt: new Date() },
     });
+
+    if (consumeResult.count === 0) {
+      throw new AppError('INVALID_OTP', 400, 'Password reset code has already been used.');
+    }
 
     // Hash new password
     const newPasswordHash = await hashPassword(input.newPassword);
@@ -706,11 +750,24 @@ export class AuthService {
       throw AppError.unauthorized('User account has been deactivated');
     }
 
-    // Mark current session as used
-    await prisma.refreshSession.update({
-      where: { id: session.id },
+    // Atomically mark current session as used (RFC 6819 refresh rotation)
+    const rotateResult = await prisma.refreshSession.updateMany({
+      where: {
+        id: session.id,
+        usedAt: null,
+        revokedAt: null,
+      },
       data: { usedAt: new Date() },
     });
+
+    if (rotateResult.count === 0) {
+      // Possible token reuse attack or race condition: immediately revoke whole token family
+      await prisma.refreshSession.updateMany({
+        where: { familyId: session.familyId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      throw AppError.unauthorized('Invalid or already used refresh token. Session terminated.');
+    }
 
     // Create rotated refresh token within the same family
     const { token: newRefreshToken, tokenHash: newHash } = generateRefreshToken();
