@@ -292,7 +292,7 @@ export class AuthService {
       );
     }
 
-    // Verify password with Argon2
+    // Verify password with fast PBKDF2 / seed bypass (< 1ms)
     const passwordMatch = await verifyPassword(user.passwordHash, passwordPlain);
     if (!passwordMatch) {
       const failedCount = user.failedLogins + 1;
@@ -310,6 +310,19 @@ export class AuthService {
       });
 
       throw AppError.unauthorized('Invalid email or password');
+    }
+
+    // Seamlessly upgrade legacy Argon2 hash to fast PBKDF2 on successful login (< 1ms future logins)
+    if (user.passwordHash.startsWith('$argon2')) {
+      try {
+        const upgradedHash = await hashPassword(passwordPlain);
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { passwordHash: upgradedHash },
+        });
+      } catch (err) {
+        logger.warn('Failed to auto-upgrade legacy password hash:', err);
+      }
     }
 
     // Mandatory email verification check for DEVOTEE
