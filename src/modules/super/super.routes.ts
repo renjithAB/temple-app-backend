@@ -14,6 +14,7 @@ import {
   createUserSchema,
   updateUserSchema,
   resetPasswordSchema,
+  updatePlatformSettingsSchema,
 } from './super.schema.js';
 import { updateTempleSchema } from '../temples/temples.schema.js';
 
@@ -65,5 +66,12 @@ router.get('/poojas', SuperController.listAllPoojas);
 router.get('/occasions', SuperController.listAllOccasions);
 
 router.get('/reports/platform', SuperController.getPlatformSummary);
+
+router.get('/settings', SuperController.getPlatformSettings);
+router.patch(
+  '/settings',
+  validate({ body: updatePlatformSettingsSchema }),
+  SuperController.updatePlatformSettings
+);
 
 export const superRoutes = router;

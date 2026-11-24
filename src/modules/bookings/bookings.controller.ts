@@ -100,4 +100,38 @@ export class BookingsController {
     );
     res.status(200).send(csvContent);
   }
+
+  static async verifyPayment(req: Request, res: Response) {
+    const verified = await BookingsService.verifyPayment(
+      req.user!.id,
+      req.body
+    );
+    res.status(200).json({ data: verified });
+  }
+
+  static async syncPayment(req: Request, res: Response) {
+    const result = await BookingsService.syncPayment(
+      req.user!.id,
+      getParam(req, 'id')
+    );
+    res.status(200).json({ data: result });
+  }
+
+  static async markCounterRefund(req: Request, res: Response) {
+    const updated = await BookingsService.markCounterRefund(
+      getParam(req, 'templeId'),
+      getParam(req, 'id'),
+      req.user!.id,
+      req.body.notes
+    );
+    res.status(200).json({ data: updated });
+  }
+
+  static async handleWebhook(req: Request, res: Response) {
+    const signature = (req.headers['x-razorpay-signature'] || '') as string;
+    const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+
+    const result = await BookingsService.handleWebhook(rawBody, signature);
+    res.status(200).json(result);
+  }
 }

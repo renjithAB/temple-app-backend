@@ -145,6 +145,9 @@ model Temple {
   bookingAdvanceDays      Int            @default(60) @map("booking_advance_days")
   cancellationCutoffHours Int            @default(24) @map("cancellation_cutoff_hours")
   status                  TempleStatus   @default(DRAFT)
+  superAdminOnlinePayment  Boolean       @default(false) @map("super_admin_online_payment")
+  templeAdminOnlinePayment Boolean       @default(false) @map("temple_admin_online_payment")
+  superAdminOnlineRefund   Boolean       @default(false) @map("super_admin_online_refund")
   deletedAt               DateTime?      @map("deleted_at")
   createdAt               DateTime       @default(now()) @map("created_at")
   updatedAt               DateTime       @updatedAt @map("updated_at")
@@ -199,6 +202,13 @@ model Pooja {
   maxDevoteesPerBooking Int             @default(5) @map("max_devotees_per_booking")
   requiresBooking       Boolean         @default(true) @map("requires_booking")
   isActive              Boolean         @default(true) @map("is_active")
+  isOneTime             Boolean         @default(false) @map("is_one_time")
+  oneTimeDate           DateTime?       @map("one_time_date")
+  oneTimeStartTime      String?         @map("one_time_start_time")
+  oneTimeEndTime        String?         @map("one_time_end_time")
+  oneTimeCapacity       Int?            @map("one_time_capacity")
+  bookingCutoffHours    Int             @default(0) @map("booking_cutoff_hours")
+  dailyCutoffTime       String?         @map("daily_cutoff_time")
   deletedAt             DateTime?       @map("deleted_at")
   createdAt             DateTime        @default(now()) @map("created_at")
   updatedAt             DateTime        @updatedAt @map("updated_at")
@@ -289,8 +299,23 @@ model Booking {
   startTime      String                 @map("start_time")
   devoteeCount   Int                    @map("devotee_count")
   unitPricePaise Int                    @map("unit_price_paise")
+  sevaAmountPaise Int?                  @map("seva_amount_paise")
+  platformFeePaise Int?                 @default(0) @map("platform_fee_paise")
+  gatewayFeePaise  Int?                 @default(0) @map("gateway_fee_paise")
+  gstPaise         Int?                 @default(0) @map("gst_paise")
   totalPaise     Int                    @map("total_paise")
   status         BookingStatus          @default(CONFIRMED)
+  paymentMode    String                 @default("PAY_AT_COUNTER") @map("payment_mode")
+  paymentStatus  String                 @default("PENDING") @map("payment_status")
+  gatewayOrderId String?                @map("gateway_order_id")
+  gatewayPaymentId String?              @map("gateway_payment_id")
+  gatewaySignature String?              @map("gateway_signature")
+  paidAt         DateTime?              @map("paid_at")
+  refundStatus   String                 @default("NONE") @map("refund_status")
+  refundAmountPaise Int?                @map("refund_amount_paise")
+  refundedAt     DateTime?              @map("refunded_at")
+  refundedById   String?                @map("refunded_by_id")
+  refundNotes    String?                @map("refund_notes")
   idempotencyKey String?                @map("idempotency_key")
   note           String?
   checkedInAt    DateTime?              @map("checked_in_at")
@@ -369,4 +394,24 @@ model AuditLog {
   @@index([templeId, createdAt])
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+model ProcessedWebhook {
+  id        String   @id @default(uuid())
+  eventId   String   @unique @map("event_id")
+  eventType String   @map("event_type")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("processed_webhooks")
+}
+
+model PlatformSettings {
+  id                 String   @id @default("default")
+  platformFeePercent Float    @default(2.5) @map("platform_fee_percent")
+  gatewayFeePercent  Float    @default(2.0) @map("gateway_fee_percent")
+  gstEnabled         Boolean  @default(false) @map("gst_enabled")
+  gstPercent         Float    @default(18.0) @map("gst_percent")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_settings")
 }

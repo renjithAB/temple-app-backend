@@ -12,6 +12,8 @@ import {
   checkInSchema,
   updateBookingStatusSchema,
   listBookingsQuerySchema,
+  verifyPaymentSchema,
+  counterRefundSchema,
 } from './bookings.schema.js';
 
 // Devotee router (mounted under /bookings)
@@ -44,6 +46,17 @@ devoteeBookingRoutes.post(
   '/:id/reschedule',
   validate({ body: rescheduleBookingSchema }),
   BookingsController.rescheduleBooking
+);
+
+devoteeBookingRoutes.post(
+  '/verify-payment',
+  validate({ body: verifyPaymentSchema }),
+  BookingsController.verifyPayment
+);
+
+devoteeBookingRoutes.post(
+  '/:id/sync-payment',
+  BookingsController.syncPayment
 );
 
 // Admin / Staff router (mounted under /admin/temples/:templeId/bookings)
@@ -88,3 +101,16 @@ adminBookingRoutes.get(
   templeScope(TempleRole.ADMIN),
   BookingsController.exportCsv
 );
+
+// Staff marks counter cash refund handed over
+adminBookingRoutes.post(
+  '/:id/counter-refund',
+  authenticate(),
+  templeScope(TempleRole.STAFF),
+  validate({ body: counterRefundSchema }),
+  BookingsController.markCounterRefund
+);
+
+// Razorpay Webhook listener (Public endpoint, signature verified inside controller)
+export const paymentsWebhookRouter = Router();
+paymentsWebhookRouter.post('/webhook', BookingsController.handleWebhook);

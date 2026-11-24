@@ -598,4 +598,41 @@ export class SuperService {
 
     return buildPaginatedResponse(items, limit);
   }
+
+  static async getPlatformSettings() {
+    let settings = await prisma.platformSettings.findUnique({
+      where: { id: 'default' },
+    });
+    if (!settings) {
+      settings = await prisma.platformSettings.create({
+        data: {
+          id: 'default',
+          platformFeePercent: 2.5,
+          gatewayFeePercent: 2.0,
+          gstEnabled: false,
+          gstPercent: 18.0,
+        },
+      });
+    }
+    return settings;
+  }
+
+  static async updatePlatformSettings(data: {
+    platformFeePercent?: number;
+    gatewayFeePercent?: number;
+    gstEnabled?: boolean;
+    gstPercent?: number;
+  }) {
+    return await prisma.platformSettings.upsert({
+      where: { id: 'default' },
+      update: data,
+      create: {
+        id: 'default',
+        platformFeePercent: data.platformFeePercent ?? 2.5,
+        gatewayFeePercent: data.gatewayFeePercent ?? 2.0,
+        gstEnabled: data.gstEnabled ?? false,
+        gstPercent: data.gstPercent ?? 18.0,
+      },
+    });
+  }
 }

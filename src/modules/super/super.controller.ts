@@ -100,4 +100,14 @@ export class SuperController {
     const summary = await ReportsService.getPlatformSummary();
     res.status(200).json({ data: summary });
   }
+
+  static async getPlatformSettings(req: Request, res: Response) {
+    const settings = await SuperService.getPlatformSettings();
+    res.status(200).json({ data: settings });
+  }
+
+  static async updatePlatformSettings(req: Request, res: Response) {
+    const updated = await SuperService.updatePlatformSettings(req.body);
+    res.status(200).json({ data: updated });
+  }
 }

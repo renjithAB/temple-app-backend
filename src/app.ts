@@ -36,10 +36,12 @@ import {
 import {
   devoteeBookingRoutes,
   adminBookingRoutes,
+  paymentsWebhookRouter,
 } from './modules/bookings/bookings.routes.js';
 import { mediaRoutes } from './modules/media/media.routes.js';
 import { adminReportRoutes } from './modules/reports/reports.routes.js';
 import { superRoutes } from './modules/super/super.routes.js';
+import { SuperService } from './modules/super/super.service.js';
 import { staffRoutes } from './modules/staff/staff.routes.js';
 
 // OpenAPI Spec
@@ -185,6 +187,26 @@ export function createApp() {
 
   // Devotee bookings
   v1.use('/bookings', devoteeBookingRoutes);
+
+  // Payments & Gateway Webhook
+  v1.use('/payments', paymentsWebhookRouter);
+
+  // Public Platform Fee & GST settings for devotee split calculations
+  v1.get('/settings/fees', async (req, res, next) => {
+    try {
+      const settings = await SuperService.getPlatformSettings();
+      res.status(200).json({
+        data: {
+          platformFeePercent: settings.platformFeePercent,
+          gatewayFeePercent: settings.gatewayFeePercent,
+          gstEnabled: settings.gstEnabled,
+          gstPercent: settings.gstPercent,
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
 
   // Temple Admin and Staff sub-router
   const templeAdmin = express.Router({ mergeParams: true });

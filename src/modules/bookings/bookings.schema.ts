@@ -22,6 +22,22 @@ export const createBookingSchema = z
       .max(10, 'Maximum devotees exceeded for single booking'),
     occasionId: z.string().uuid().optional().nullable(),
     note: z.string().trim().max(500).optional().nullable(),
+    paymentMode: z.enum(['ONLINE', 'PAY_AT_COUNTER']).optional().default('PAY_AT_COUNTER'),
+  })
+  .strict();
+
+export const verifyPaymentSchema = z
+  .object({
+    bookingId: z.string().uuid('Invalid booking ID'),
+    razorpayOrderId: z.string().min(1, 'Order ID is required'),
+    razorpayPaymentId: z.string().min(1, 'Payment ID is required'),
+    razorpaySignature: z.string().min(1, 'Signature is required'),
+  })
+  .strict();
+
+export const counterRefundSchema = z
+  .object({
+    notes: z.string().trim().max(255).optional(),
   })
   .strict();
 

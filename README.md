@@ -140,13 +140,19 @@ When the server runs, interactive Swagger UI is available at:
 - `GET /search` - Cross-entity search (temples, poojas, occasions).
 
 #### 4. Booking Engine (`/api/v1/bookings`)
-- `POST /bookings` - Book a pooja (`Idempotency-Key` header supported). Atomic slot reservation.
+- `POST /bookings` - Book a pooja (`Idempotency-Key` header supported). Atomic slot reservation. Initiates Razorpay Order if `paymentMode: "ONLINE"`.
 - `GET /bookings` - Devotee's own bookings list with cursor pagination.
-- `GET /bookings/:id` - Booking details with signed QR payload.
-- `POST /bookings/:id/cancel` - Cancel booking (enforces temple cancellation cutoff).
+- `GET /bookings/:id` - Booking details with signed QR payload and payment status.
+- `POST /bookings/verify-payment` - Verifies Razorpay HMAC signature (`razorpay_order_id|razorpay_payment_id`) and marks booking `PAID`.
+- `POST /bookings/:id/sync-payment` - Devotee network recovery check that polls Razorpay API for live payment status.
+- `POST /bookings/:id/cancel` - Cancel booking with automated cutoff validation and conditional refund routing (online gateway refund vs counter cash pending).
+- `POST /bookings/:id/counter-refund` - Temple Staff / Admin marks cash refund as handed over at temple counter (`COUNTER_COMPLETED`).
 - `POST /bookings/:id/reschedule` - Atomic reschedule to another slot (max 3 reschedules).
 
-#### 5. Temple Administration (`/api/v1/admin/temples/:templeId`)
+#### 5. Payments & Webhooks (`/api/v1/payments`)
+- `POST /payments/webhook` - Idempotent Razorpay webhook listener for `payment.captured`, `payment.failed`, and `refund.processed` with `x-razorpay-signature` verification.
+
+#### 6. Temple Administration (`/api/v1/admin/temples/:templeId`)
 *Protected by `authenticate()` and `templeScope(role)` middleware.*
 - `GET, PATCH /` - Update temple information and cutoff rules.
 - `GET, POST, PATCH, DELETE /poojas` - Manage temple poojas.
@@ -161,7 +167,7 @@ When the server runs, interactive Swagger UI is available at:
 - `GET /reports/summary` - Revenue and devotee statistics dashboard.
 - `POST /media/images` - Upload temple image (strips EXIF metadata with Sharp, stores in Cloudinary).
 
-#### 6. Platform Super Admin (`/api/v1/super`)
+#### 7. Platform Super Admin (`/api/v1/super`)
 *Protected by `SUPER_ADMIN` global role.*
 - `POST /super/temples` - Provision new temple in `DRAFT` status.
 - `PATCH /super/temples/:id/status` - Activate or suspend temple.
@@ -169,6 +175,39 @@ When the server runs, interactive Swagger UI is available at:
 - `GET /super/temples` - Platform-wide temple list with statistics.
 - `GET /super/users` & `PATCH /super/users/:id/status` - Manage and suspend users.
 - `GET /super/reports/platform` - Global metrics (temples, devotees, revenue, bookings).
+
+---
+
+## 💳 Razorpay Gateway & Webhook Setup
+
+### 1. Environment Variables
+Add the following to your `backend/.env`:
+```env
+# Razorpay API Credentials (from Razorpay Dashboard > Settings > API Keys)
+RAZORPAY_KEY_ID="rzp_test_YourKeyIdHere"
+RAZORPAY_KEY_SECRET="YourKeySecretHere"
+
+# Razorpay Webhook Secret (from Razorpay Dashboard > Settings > Webhooks)
+RAZORPAY_WEBHOOK_SECRET="your_webhook_signing_secret_here"
+```
+*Note: If left blank or unset, the backend automatically uses **Mock Sandbox Mode**, enabling end-to-end booking tests without real credentials.*
+
+### 2. Webhook Configuration in Razorpay Dashboard
+1. Go to **Razorpay Dashboard** $\to$ **Settings** $\to$ **Webhooks** $\to$ **Add New Webhook**.
+2. Set **Webhook URL** to:
+   ```
+   https://<your-domain>/api/v1/payments/webhook
+   ```
+3. Set **Secret** to match `RAZORPAY_WEBHOOK_SECRET`.
+4. Subscribe to the following events:
+   - `payment.captured`
+   - `payment.failed`
+   - `refund.processed`
+5. Save the webhook.
+
+### 3. Dual-Approval & Refund Policy
+- **Dual-Consent Payment**: Online checkout requires both `superAdminOnlinePayment === true` and `templeAdminOnlinePayment === true`. If either is false, payment defaults to temple counter cash.
+- **Refund Policy**: By default, refunds are cash-at-counter (`COUNTER_PENDING` $\to$ `COUNTER_COMPLETED`). Online gateway refunds only trigger if online payments are active AND Super Admin explicitly enables `superAdminOnlineRefund === true`.
 
 ---
 

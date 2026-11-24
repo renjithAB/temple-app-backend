@@ -10,6 +10,13 @@ export const createPoojaSchema = z
     maxDevoteesPerBooking: z.number().int().min(1).max(20).default(5),
     requiresBooking: z.boolean().default(true),
     isActive: z.boolean().default(true),
+    isOneTime: z.boolean().default(false),
+    oneTimeDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'oneTimeDate must be YYYY-MM-DD').optional().nullable(),
+    oneTimeStartTime: z.string().regex(/^\d{2}:\d{2}$/, 'oneTimeStartTime must be HH:MM').optional().nullable(),
+    oneTimeEndTime: z.string().regex(/^\d{2}:\d{2}$/, 'oneTimeEndTime must be HH:MM').optional().nullable(),
+    oneTimeCapacity: z.number().int().min(1).max(50000).optional().nullable(),
+    bookingCutoffHours: z.number().int().min(0).max(720).default(0),
+    dailyCutoffTime: z.string().regex(/^\d{2}:\d{2}$/, 'dailyCutoffTime must be HH:MM').optional().nullable(),
   })
   .strict();
 

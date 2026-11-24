@@ -94,3 +94,12 @@ export const resetPasswordSchema = z
     newPassword: z.string().min(6),
   })
   .strict();
+
+export const updatePlatformSettingsSchema = z
+  .object({
+    platformFeePercent: z.number().min(0).max(100).optional(),
+    gatewayFeePercent: z.number().min(0).max(100).optional(),
+    gstEnabled: z.boolean().optional(),
+    gstPercent: z.number().min(0).max(100).optional(),
+  })
+  .strict();

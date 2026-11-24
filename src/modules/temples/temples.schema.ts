@@ -38,6 +38,9 @@ export const updateTempleSchema = z
     openingHours: z.record(z.string()).optional().nullable(),
     bookingAdvanceDays: z.number().int().min(1).max(365).optional(),
     cancellationCutoffHours: z.number().int().min(0).max(168).optional(),
+    superAdminOnlinePayment: z.boolean().optional(),
+    templeAdminOnlinePayment: z.boolean().optional(),
+    superAdminOnlineRefund: z.boolean().optional(),
   })
   .strict();
 

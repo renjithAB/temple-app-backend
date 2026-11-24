@@ -44,6 +44,11 @@ const envSchema = z.object({
   // Firebase Cloud Messaging
   FCM_SERVICE_ACCOUNT_JSON: z.string().optional().default(''),
 
+  // Razorpay Gateway
+  RAZORPAY_KEY_ID: z.string().optional().default(''),
+  RAZORPAY_KEY_SECRET: z.string().optional().default(''),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(''),
+
   // Sentry
   SENTRY_DSN: z.string().optional().default(''),
 
